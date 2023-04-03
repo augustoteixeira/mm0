@@ -1,47 +1,78 @@
+-- improvements on mm1:
+-- * use quotes instead of dolars: "p -> q". look at how Isabelle HOL looks much better
+-- * scripting language should be typed. type driven development helps a lot.
+--   Preferably it should guide us in finding theorems to use.
+-- * Errors in (have 'c $foo$ 'stupidity) fail silently.
+-- * missing variables are not pointed out.
+
 delimiter $ ( ) ~ { } $;
 strict provable sort wff;
-term wi (ph ps: wff): wff; infixr wi: $->$ prec 25;
-term wn (ph: wff): wff; prefix wn: $~$ prec 40;
 
-axiom ax_1 (ph ps: wff): $ph -> ps -> ph$;
-axiom ax_2 (ph ps ch: wff): $(ph -> (ps -> ch)) -> ((ph -> ps) -> (ph -> ch))$;
-axiom ax_3 (ph ps: wff): $(~ph -> ~ps) -> ps -> ph$;
-axiom ax_mp (ph ps: wff): $ph$ > $ph -> ps$ > $ps$;
+-- # Axioms
 
+term wi (a b: wff): wff; infixr wi: $->$ prec 25;
+term wn (a: wff): wff; prefix wn: $~$ prec 40;
+
+--| Axiom 1 of Lukasiewicz' axioms for classical propositional logic.
+axiom ax_1 (a b: wff): $a -> b -> a$;
+--| Axiom 2 of Lukasiewicz' axioms for classical propositional logic.
+axiom ax_2 (a b c: wff): $(a -> (b -> c)) -> ((a -> b) -> (a -> c))$;
+--| Axiom 3 of Lukasiewicz' axioms for classical propositional logic.
+axiom ax_3 (a b: wff): $(~a -> ~b) -> b -> a$;
+--| Modus ponens: from `a -> b` and `a`, infer `b`.
+axiom ax_mp (a b: wff) (h1: $a$) (h2: $a -> b$): $b$;
 
 --| Expand a proof into a string
 do {(def (expand p) (begin (have 'expanded-term p) (pp @ infer-type 'expanded-term)))};
 
--- improve didactics
-theorem a1i (ph ps: wff) (h: $ph$): $ps -> ph$ = (
+-- # Theorem Forms
+
+-- ## Inference Form
+
+-- First proof (! notation)
+theorem a1_i (a b: wff) (h: $a$): $b -> a$ = (
   focus
-  --(display @ expand '(! ax_mp ph $ps -> ph$ h (! ax_1 ph ps)))
-  '(! ax_mp ph $ps -> ph$ h (! ax_1 ph ps))
+  --(display @ expand '(! ax_mp a $b -> a$ h (! ax_1 a b)))
+  '(! ax_mp a $b -> a$ h (! ax_1 a b))
 );
+-- Unification and proofs without !
+theorem _ (a b: wff) (h: $a$): $b -> a$ = '(ax_mp h ax_1);
+theorem a2_i (a b: wff) (h: $a -> b -> c$): $(a -> b) -> (a -> c)$ = '(ax_mp h ax_2);
+theorem a3_i (a b: wff) (h: $~a -> ~b$): $(b -> a)$ = '(ax_mp h ax_3);
 
--- get inferences (just use ax_mp)
-theorem a1ii (ph ps: wff) (h: $ph$): $ps -> ph$ = '(ax_mp h ax_1);
-theorem a2i (ph ps: wff) (h: $ph -> ps -> ch$): $(ph -> ps) -> (ph -> ch)$ = '(ax_mp h ax_2);
-theorem a3i (ph ps: wff) (h: $~ph -> ~ps$): $(ps -> ph)$ = '(ax_mp h ax_3);
+-- ## Deduction Form
 
-theorem mpd (ph ps: wff) (h1: $ ph -> ps $) (h2: $ ph -> ps -> ch$): $ ph -> ch $ = '(ax_mp h1 (a2i h2));
-theorem syl (ph ps: wff) (h1: $ph -> ps$) (h2: $ps -> ch$): $ph -> ch$ = '(
-  mpd h1 (a1i h2)
-);
-
--- get deduction style (just use syl)
-theorem a1d (ph ps ch: wff) (h: $ph -> ps$): $ph -> (ch -> ps)$ = '(syl h ax_1);
-theorem a2d (ph ps ch th: wff) (h: $ph -> (ps -> (ch -> th))$): $ph -> ((ps -> ch) -> (ps -> th))$ = '(syl h ax_2);
-theorem a3d (ph ps ch: wff) (h: $ph -> (~ps -> ~ch)$): $ph -> (ch -> ps)$ = '(syl h ax_3);
-
-theorem id: $ph -> ph$ = (
+theorem mp_d (u a b: wff) (h1: $u -> a$) (h2: $u -> a -> b$): $u -> b$ = '(ax_mp h1 (a2_i h2));
+theorem syl (a b: wff) (h1: $a -> b$) (h2: $b -> c$): $a -> c$ = (
   focus
-  (have 'h1 $ph -> (ph -> ph)$ 'ax_1)
-  (have 'h2 $ph -> ((ph -> ph) -> ph)$ 'ax_1)
-  '(mpd h1 h2)
+  (have 'c1 $a -> (b -> c)$ '(a1_i h2))
+  '(mp_d h1 c1)
 );
+-- just use syl
+theorem a1_d (a b c: wff) (h: $a -> b$): $a -> (c -> b)$ = '(syl h ax_1);
+theorem a2_d (u a b c: wff) (h: $u -> (a -> (b -> c))$): $u -> ((a -> b) -> (a -> c))$ = '(syl h ax_2);
+theorem a3_d (a b c: wff) (h: $a -> (~b -> ~c)$): $a -> (c -> b)$ = '(syl h ax_3);
 
---theorem pm2_21ii (ph ps: wff) (h: $~ph$): $ph -> ps$ = '(a3i a1i);
+-- double deduction
+theorem mp_dd (u v a b: wff)
+  (h1: $u -> v -> a$) (h2: $u -> v -> a -> b$): $u -> v -> b$ = '(
+    mp_d h1 (a2_d h2)
+  );
+-- syl deduction (recall syl used mp_d already, now we need mp_dd)
+theorem syl_d (u a b: wff)
+  (h1: $u -> (a -> b)$) (h2: $u -> (b -> c)$): $u -> (a -> c)$ = (
+    focus
+    (have 'c $u -> a -> b -> c$ '(a1_d h2))
+    '(mp_dd h1 c)
+);
+-- exercise: prove syl_dd
+
+theorem id: $a -> a$ = (
+  focus
+  (have 'h1 $a -> (a -> a)$ 'ax_1)
+  (have 'h2 $a -> ((a -> a) -> a)$ 'ax_1)
+  '(mp_d h1 h2)
+);
 
 do {
   (def (claim label exp p)
@@ -56,78 +87,82 @@ do {
       ))
 };
 
+-- # Contradiction
+
 --| contradiction implies anything
-theorem pm2_21i (ph ps: wff) (h: $~ph$): $ph -> ps$ = (
+theorem contr (a b: wff) (h: $~a$): $a -> b$ = (
   focus
   -- uncommenting display below breaks the proof :(
   -- (display @ expand 'a1i)
-  -- (display @ expand '(! a1i $~ph$ $~ps$ h))
-  (have 'c $~ps -> ~ph$ '(a1i h))  -- remove h here and see how the error is uninformative
-  --(have 'd $ph -> ps$ '(! a3i ps ph c))
+  -- (display @ expand '(! a1i $~a$ $~b$ h))
+  (have 'c $~b -> ~a$ '(a1_i h))  -- remove h here and see how the error is uninformative
+  --(have 'd $a -> b$ '(! a3i b a c))
   --(display @ pp @ local-ctx)
   --(stat)
-  --(claim 'c $~ps -> ~ph$ '(a1i h))  -- remove h here and see how the error is uninformative
-  '(a3i c)
-  --(have 'd $ph -> ps$ '(! a3i ps ph c))
+  --(claim 'c $~b -> ~a$ '(a1i h))  -- remove h here and see how the error is uninformative
+  '(a3_i c)
+  --(have 'd $a -> b$ '(! a3i b a c))
   --'d
 );
 
---| contradiction deduction style
--- just use deduction style everywhere
-theorem pm2_21d (ph ps ch: wff) (h: $ph -> ~ps$): $ph -> ps -> ch$ = (
+--| contradiction deduction
+-- just use deduction form everywhere
+theorem contrad_d (a b c: wff) (h: $a -> ~b$): $a -> b -> c$ = (
   focus
-  (have 'c $ph -> (~ch -> ~ps)$ '(! a1d $ph$ $~ps$ $~ch$ h))
-  '(a3d c) -- a simpler proof '(a3d (a1d h))
+  (have 'c $a -> (~c -> ~b)$ '(! a1_d $a$ $~b$ $~c$ h))
+  '(a3_d c) -- a simpler proof '(a3d (a1d h))
 );
 
---| contradiction deduction style
--- just use deduction style everywhere
-theorem _ (ph ps ch: wff) (h: $ph -> ~ps$): $ph -> ps -> ch$ = (
+--| contradiction deduction form
+-- just use deduction form everywhere
+theorem _ (a b c: wff) (h: $a -> ~b$): $a -> b -> c$ = (
   focus
   -- it is difficult to use set-goals:
   --(display @ pp @ get-goals)
-  --(let ([g (hd @ get-goals)]) (set-goals (ref! @ goal $ph -> (~ch -> ~ps)$) g)) -- (goal $ph -> (~ch -> ~ps)$))
+  --(let ([g (hd @ get-goals)]) (set-goals (ref! @ goal $a -> (~c -> ~b)$) g)) -- (goal $a -> (~c -> ~b)$))
   --(refine '(a1d h))
-  --(have 'c $ph -> (~ch -> ~ps)$ '(! a1d $ph$ $~ps$ $~ch$ h))
-  (have 'c $ph -> (~ch -> ~ps)$ '(a1d h))
-  '(a3d c)
+  --(have 'c $a -> (~c -> ~b)$ '(! a1d $a$ $~b$ $~c$ h))
+  (have 'c $a -> (~c -> ~b)$ '(a1_d h))
+  '(a3_d c)
   -- a simpler proof: '(a3d (a1d h))
 );
 
---| contradiction deduction
-theorem contradiction (ph ps: wff): $~ph -> ph -> ps$ = (
+--| contradiction closed form
+theorem contrad_c (a b: wff): $~a -> a -> b$ = (
   focus
-  (have 'c1 $~ph -> ~ph$ 'id)
-  (have 'c2 $~ph -> ph -> ps$ '(pm2_21d id)) -- again, remove id here and see the bad error message
+  (have 'c1 $~a -> ~a$ 'id)
+  (have 'c2 $~a -> a -> b$ '(contrad_d id)) -- again, remove id here and see the bad error message
   'c2
 );
 
+-- # Time to workout!
+
 --| absorbing redundant antecedent
-theorem pm2_43i (ph ps: wff) (h: $ph -> ph -> ps$): $ph -> ps$ = (
+theorem redun_ant (a b: wff) (h: $a -> a -> b$): $a -> b$ = (
   focus
-  (have 'c $ph -> ph$ 'id)
-  '(mpd c h)
+  (have 'c $a -> a$ 'id)
+  '(mp_d c h)
 );
 
 
 -- mirabilis: pm2.18
-theorem pm2_18 (ph ps: wff): $(~ph -> ph) -> ph$ = (
+theorem mirab (a: wff): $(~a -> a) -> a$ = (
   focus
-  (have 'c1 $~ph -> ph -> ~(~ph -> ph)$ '(! contradiction $ph$ $~(~ph -> ph)$))
-  (have 'c2 $(~ph -> ph) -> (~ph -> ~(~ph -> ph))$ '(a2i c1))
-  (have 'c3 $(~ph -> ph) -> (~ph -> ph) -> ph$ '(a3d c2))
-  '(pm2_43i c3)
+  (have 'c1 $~a -> a -> ~(~a -> a)$ '(! contrad_c $a$ $~(~a -> a)$))
+  (have 'c2 $(~a -> a) -> (~a -> ~(~a -> a))$ '(a2_i c1))
+  (have 'c3 $(~a -> a) -> (~a -> a) -> a$ '(a3_d c2))
+  '(redun_ant c3)
 );
 
 -- improve proof
 --| elimiation of a nested antecedent
-theorem jarli (ph ps ch: wff) (h: $(ph -> ps) -> ch$): $~ph -> ch$ = '(syl contradiction h);
+theorem elim_nest_ant (a b c: wff) (h: $(a -> b) -> c$): $~a -> c$ = '(syl contrad_c h);
 
 --| notnotr
-theorem notnotr (ph: wff): $~~ph -> ph$ = (
+theorem notnotr (a: wff): $~~a -> a$ = (
   focus
-  (have 'c $(~ph -> ph) -> ph$ '(! pm2_18 _ $ph$))
-  '(jarli c)
+  (have 'c $(~a -> a) -> a$ '(! mirab $a$))
+  '(elim_nest_ant c)
 ); -- remove the semicolon and the error goes down :(
 
 -- con1i (try using notnotr directly instead of fkn nsyl2)
@@ -137,36 +172,217 @@ theorem notnotr (ph: wff): $~~ph -> ph$ = (
 -- mto (perhaps with not phi instead)
 -- mt3d
 
-theorem notnot (ph: wff): $ph -> ~~ph$ = (
+theorem notnot (a: wff): $a -> ~~a$ = (
   focus
-  (have 'c $~~~ph -> ~ph$ 'notnotr)
-  '(a3i c)
+  (have 'c $~~~a -> ~a$ 'notnotr)
+  '(a3_i c)
 );
 
 --| contra
---theorem contra (ph ps: wff) (h: $~ph -> ps$): $~ps -> ph$ = (
+--theorem contra (a b: wff) (h: $~a -> b$): $~b -> a$ = (
 --  focus
 --  ()
 --)
 
---| simplification
-theorem simpli (ph ps: wff): $~(ph -> ps) -> ph$ = (
+--| negated implication gives antecedent
+theorem not_impl_ant (a b: wff): $~(a -> b) -> a$ = (
   focus
-  (have 'c1 $~ph -> ph -> ps$ 'contradiction)
-  (have 'c2 $(ph -> ps) -> ~~(ph -> ps)$ 'notnot)
-  (have 'c3 $~ph -> ~~(ph -> ps)$ '(syl c1 c2))
-  '(a3i c3)
+  (have 'c1 $~a -> a -> b$ 'contrad_c)
+  (have 'c2 $(a -> b) -> ~~(a -> b)$ 'notnot)
+  (have 'c3 $~a -> ~~(a -> b)$ '(syl c1 c2))
+  '(a3_i c3)
+);
+
+--| negated implication negates consequent
+theorem not_impl_cons (a b: wff): $~(a -> b) -> ~b$ = (
+  focus
+  (have 'c1 $b -> (a -> b)$ 'ax_1)
+  (have 'c2 $~~b -> (a -> b)$ '(syl notnotr c1))
+  (have 'c3 $~~b -> ~~(a -> b)$ '(syl c2 notnot))
+  '(a3_i c3)
+);
+
+theorem commute_ant (a b c: wff) (h: $a -> b -> c$): $b -> a -> c$ = (
+  focus
+  (have 'c1 $(a -> b) -> (a -> c)$ '(a2_i h))
+  (have 'c2 $b -> (a -> b)$ 'ax_1)
+  '(syl c2 c1)
+);
+
+-- try to prove closed form way above, using deduction form
+-- it is difficult because we need h1 /\ h2. But we will
+-- move conjuction above
+theorem mp_c (a b: wff): $a -> (a -> b) -> b$ = '(
+  commute_ant (! id $a -> b$)
+);
+
+-- contraposition
+theorem contrap_i (h: $a -> ~b$): $b -> ~a$ = (
+  focus
+  (have 'c $~~a -> ~b$ '(syl notnotr h))
+  '(a3_i c)
+);
+-- in order to build deduction from another proof, tautologies get an antecedent through a1i:
+theorem contrap_d (h: $u -> a -> ~b$): $u -> b -> ~a$ =
+  '(a3_d (syl_d (a1_i notnotr) h)
 );
 
 
 
-def wb (ph ps: wff): wff = $~((ph -> ps) -> ~(ps -> ph))$;
-infixl wb: $<->$ prec 20;
+
+-- # Conjunction
+
+--| Conjunction: `a` and `b` are both true.
+def an (a b: wff): wff = $~(a -> ~b)$;
+infixl an: $/\$ prec 34;
+
+theorem conj_impl_l: $(a /\ b) -> a$ = 'not_impl_ant;
+theorem conj_impl_l_i (h: $a /\ b$): $a$ = '(ax_mp h conj_impl_l);
+theorem conj_impl_r: $(a /\ b) -> b$ = (
+  focus
+  (have 'c $(a /\ b) -> ~~b$ 'not_impl_cons)
+  '(syl c notnotr)
+);
+theorem conj_impl_r_i (h: $a /\ b$): $b$ = '(ax_mp h conj_impl_r);
+
+-- build conjunction in closed form
+-- confirms intuition that double antecedent acts as conj
+theorem build_conj: $a -> b -> a /\ b$ = (
+  focus
+  (have 'c1 $a -> (a -> ~b) -> ~b$ 'mp_c)
+  '(contrap_d c1)
+);
+theorem build_conj_i
+  (h1: $a$) (h2: $b$): $a /\ b$ = (
+  focus
+  (have 'c $b -> a /\ b$ '(ax_mp h1 build_conj))
+  '(ax_mp h2 c)
+);
+-- theorem build_conj_d
+--   (h1: $u -> a$) (h2: $u -> b$): $u -> a /\ b$ =
+--   '(contrap_dd);
+
+theorem anll (h: $a /\ b /\ c$): $a$ =
+  '(conj_impl_l_i (conj_impl_l_i h));
+
+-- exercise
+-- theorem iand (h1: $a -> b$) (h2: $a -> c$): $a -> b /\ c$ = '(sylc ian h1 h2);
+
+
+--| Disjunction
+def or (a b: wff): wff = $~a -> b$;
+infixl or: $\/$ prec 30;
+
+--| Truth tables
+def true (a: wff): wff = $a \/ ~a$;
+prefix true: $True$ prec max;
+def fal (a: wff): wff = $a /\ ~a$;
+prefix fal: $F.$ prec max;
+
+
+
+--| If and only if: `a` implies `b`, and `b` implies `a`.
+def iff (a b: wff): wff = $(a -> b) /\ (b -> a)$;
+infixl iff: $<->$ prec 20;
+
+
+
+
+
+
 
 -- biimp
-theorem bi1 (ph ps: wff): $(ph <-> ps) -> ph -> ps$ = 'simpli;
+theorem equiv_impl (a b: wff): $(a <-> b) -> a -> b$ = 'not_impl_ant;
+theorem equiv_implr (a b: wff): $(a <-> b) -> b -> a$ = (
+  focus
+  (have 'c $(a <-> b) -> ~~(b -> a)$ 'not_impl_cons)
+  '(syl c notnotr)
+);
+
+theorem equiv_impl_i (a b: wff) (h: $a <-> b$): $a -> b$ = '(ax_mp h equiv_impl);
+theorem equiv_implr_i (a b: wff) (h: $a <-> b$): $b -> a$ = '(ax_mp h equiv_implr);
+
+theorem equiv_impl_d (u a b: wff) (h: $u -> (a <-> b)$): $u -> (a -> b)$ = '(mp_d h (a1_i equiv_impl));
+
+-- MAKE A TACTIC TO DERIVE DEDUCTION form PROOFS!!!!!
 
 
---theorem bi2 (ph ps: wff): $ (ph <-> ps) -> ps -> ph $;
---theorem bi3 (ph ps: wff): $ (ph -> ps) -> (ps -> ph) -> (ph <-> ps) $;
+
+
+
+
+theorem repl_equiv_cons (a b c: wff)
+  (h1: $a -> b$) (h2: $b <-> c$): $a -> c$ = (
+    focus
+    (have 'c $b -> c$ '(equiv_impl_i h2))
+    '(syl h1 c)
+); -- look this was easy to prove, because of inference form
+
+theorem repl_equiv_ant (a c b: wff)
+  (h1: $a -> b$) (h2: $a <-> c$): $c -> b$ = (
+    focus
+    (have 'c $c -> a$ '(equiv_implr_i h2))
+    '(syl c h1)
+);
+
+-- we should always use u for deduction form!!!
+theorem repl_equiv_cons_d (a b c: wff)
+  (h1: $u -> (a -> b)$) (h2: $u -> (b <-> c)$): $u -> (a -> c)$ = '(
+    syl_d h1 (equiv_impl_d h2)    
+  );
+
+
+-- theorem equiv_impl_equiv (a b c: wff):
+--  $(b <-> c) -> (a -> b) -> (a -> c)$ = (
+--    focus
+--    (have 'c1 $(b <-> c) -> (b -> c)$ 'bi1)
+--    (have 'c2 $$ _)
+--  );
+
+
+--a -> (a -> b) -> b
+--a ->  b -> ~(a -> ~b)
+
+--theorem equiv_conseq (a b c: wff)
+--  (h1: $b <-> c$) (h2: $a -> b$): $a -> c$ = (
+--  focus
+--  (have 'c1 $(a -> b) -> (b <-> c)$ 'a1i)
+--  (have 'c2 $(a -> b) -> (b -> c)$ _)
+--  '(syl c1 c2)
+--);
+
+-- theorem equiv_antec (a b c: wff) (h: $a <-> b$): $(a -> c) -> (b -> c)$ = (
+--   focus
+--   (have 'c1 $$ _)
+--   (have 'c2 $$ _)
+--   '(syl c1 c2)
+-- );
+
+-- theorem bi3i (a b: wff)
+--   (h1: $a -> b$) (h2: $b -> a$): $a <-> b$ = (
+--   let ([a $a -> b$] [b $b -> a$])
+--   (focus
+--     (have 'c2 $$ _)
+--     (have 'c1 $$ _)
+--     (have 'c4 $$ _)
+--     (have 'c5 $~(,a -> ~,b)$ _)
+--     'c2
+--   )
+-- );
+
+
+-- theorem bi3 (a b: wff): $(a -> b) -> (b -> a) -> (a <-> b)$ = (
+--   let ([a $a -> b$] [b $b -> a$])
+--   (focus
+--     (have 'c2 $(,a -> ~,b) <-> ~~(,a -> ~,b)$ _)
+--     (have 'c1 $,a -> (,a -> ~,b) -> ~,b$ 'mpdd)
+--     (have 'c4 $,a -> ~~(,a -> ~,b) -> ~,b$ 'mpdd)
+--     (have 'c5 $,a -> ,b -> ~(,a -> ~,b)$ _)
+--     'c2
+--   )
+-- );
+
+
+
+
 
