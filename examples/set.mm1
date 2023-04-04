@@ -90,7 +90,7 @@ do {
 -- # Contradiction
 
 --| contradiction implies anything
-theorem contr (a b: wff) (h: $~a$): $a -> b$ = (
+theorem contrad_i (a b: wff) (h: $~a$): $a -> b$ = (
   focus
   -- uncommenting display below breaks the proof :(
   -- (display @ expand 'a1i)
@@ -135,7 +135,7 @@ theorem contrad_c (a b: wff): $~a -> a -> b$ = (
   'c2
 );
 
--- # Time to workout!
+-- # Workout!
 
 --| absorbing redundant antecedent
 theorem redun_ant (a b: wff) (h: $a -> a -> b$): $a -> b$ = (
@@ -178,12 +178,6 @@ theorem notnot (a: wff): $a -> ~~a$ = (
   '(a3_i c)
 );
 
---| contra
---theorem contra (a b: wff) (h: $~a -> b$): $~b -> a$ = (
---  focus
---  ()
---)
-
 --| negated implication gives antecedent
 theorem not_impl_ant (a b: wff): $~(a -> b) -> a$ = (
   focus
@@ -216,7 +210,8 @@ theorem mp_c (a b: wff): $a -> (a -> b) -> b$ = '(
   commute_ant (! id $a -> b$)
 );
 
--- contraposition
+-- # Contraposition
+
 theorem contrap_i (h: $a -> ~b$): $b -> ~a$ = (
   focus
   (have 'c $~~a -> ~b$ '(syl notnotr h))
@@ -226,8 +221,22 @@ theorem contrap_i (h: $a -> ~b$): $b -> ~a$ = (
 theorem contrap_d (h: $u -> a -> ~b$): $u -> b -> ~a$ =
   '(a3_d (syl_d (a1_i notnotr) h)
 );
+-- explain how to obtain closed from deduction
+theorem contrap_c: $(a -> ~b) -> b -> ~a$ =
+  '(contrap_d id);
 
-
+theorem contrap2_i (h: $~a -> b$): $~b -> a$ = (
+  focus
+  (have 'c $~a -> ~~b$ '(syl h notnot))
+  '(a3_i c)
+);
+-- in order to build deduction from another proof, tautologies get an antecedent through a1i:
+theorem contrap2_d (h: $u -> ~a -> b$): $u -> ~b -> a$ =
+  '(a3_d (syl_d h (a1_i notnot))
+);
+-- explain how to obtain closed from deduction
+theorem contrap2_c: $(~a -> b) -> ~b -> a$ =
+  '(contrap2_d id);
 
 
 -- # Conjunction
@@ -294,6 +303,7 @@ theorem _: $a -> b -> a /\ b$ = (
   (have 'c $a -> (a -> ~b) -> ~b$ 'mp_c)
   '(contrap_d c)
 );
+-- improve the explanation of how to decude this. Probably try to prove _i without _c first
 theorem build_conj_d
   (h1: $u -> a$) (h2: $u -> b$): $u -> a /\ b$ = (
     focus
@@ -320,25 +330,46 @@ theorem triple_conj_b (h: $a /\ b /\ c$): $b$ =
 theorem triple_conj_c (h: $a /\ b /\ c$): $c$ =
   '(conj_impl_r_i h);
 
--- # Disjunction
 
+-- # Disjunction
 
 --| Definition of disjunction (a or b)
 def or (a b: wff): wff = $~a -> b$;
 infixl or: $\/$ prec 30;
 
+theorem disj_from_l_c: $a -> a \/ b$ = (
+  focus
+  (have 'c $~~a -> ~a -> b$ 'contrad_c)
+  '(syl notnot c)
+);
+theorem disj_from_r_c: $b -> a \/ b$ = 'ax_1;
 
-theorem orl: $ a -> a \/ b $ = 'absurdr;
-theorem orr: $ b -> a \/ b $ = 'ax_1;
+theorem disj_from_l_i (h: $a$): $a \/ b$ = (
+  focus
+  (have 'c $~~a$ '(ax_mp h notnot))
+  '(contrad_i c)
+);
+theorem disj_from_r_i (h: $b$): $a \/ b$ = '(a1_i h);
+-- transform from disj_from_l_i:
+theorem disj_from_l_d (h: $u -> a$): $u -> a \/ b$ = (
+  focus
+  (have 'c $u -> ~~a$ '(mp_d h (a1_i notnot)))
+  '(contrad_d c)
+);
+theorem disj_from_r_d (h: $u -> b$): $u -> a \/ b$ = '(a1_d h);
 
-theorem orld (h: $ a -> b $): $ a -> b \/ c $ = '(syl orl h);
-theorem orrd (h: $ a -> c $): $ a -> b \/ c $ = '(syl orr h);
--- ?
+theorem disj_commut: $a \/ b -> b \/ a$ = (
+  focus
+  (have 'qed $(~a -> b) -> ~b -> a$ 'contrap2_c)
+  'qed
+);
 
-theorem orcom: $ a \/ b -> b \/ a $ = 'con1;
+-- exercise
+--theorem eorda (h1: $a /\ b -> d$) (h2: $a /\ c -> d$):
+--  $a -> b \/ c -> d$ = '(eord (exp h1) (exp h2));
 
-theorem eorda (h1: $ a /\ b -> d $) (h2: $ a /\ c -> d $):
-  $ a -> b \/ c -> d $ = '(eord (exp h1) (exp h2));
+
+-- # Truth tables
 
 
 --| Truth tables
@@ -347,54 +378,38 @@ prefix true: $True$ prec max;
 def fal (a: wff): wff = $a /\ ~a$;
 prefix fal: $F.$ prec max;
 
+-- TODO this
 
+
+-- # Equivalence
 
 --| If and only if: `a` implies `b`, and `b` implies `a`.
 def iff (a b: wff): wff = $(a -> b) /\ (b -> a)$;
 infixl iff: $<->$ prec 20;
 
-
-
--- exercise
--- theorem iand (h1: $a -> b$) (h2: $a -> c$): $a -> b /\ c$ = '(sylc ian h1 h2);
-
--- do {
---   (def dbg @ match-fn* [(x) (print x) x]
---     [(x y) (display @ string-append (->string x) ": " (->string y)) y])
---   (def last (match-fn [(a) a] [(_ . l) (last l)]))
---   (let ([p (last @ get-decl 'mp_d)])
---     (print (p))
---     )
--- };
-
--- I don't know how to get the proof from get-decl:
--- do {
---   (def last (match-fn [(a) a] [(_ . l) (last l)]))
---   (add-decl! 
---   'theorem 'triple_conj_aa '((a wff ()) (b wff ()) (c wff ())) '((h (an (an a b) c))) 'a '() '(codj_impl_l_i (conj_impl_l_i h)))
---   (print (get-decl 'mp_d))
---   (let ([p (last @ get-decl 'mp_d)])
---     (p))
---     (print @ infer-type p)
---   )
---   (print @ ref! @ last @ get-decl 'mp_d)
--- };
-
-
-
-
 -- biimp
-theorem equiv_impl (a b: wff): $(a <-> b) -> a -> b$ = 'not_impl_ant;
-theorem equiv_implr (a b: wff): $(a <-> b) -> b -> a$ = (
+theorem equiv_impl_l (a b: wff): $(a <-> b) -> a -> b$ = 'conj_impl_l;
+theorem equiv_impl_r (a b: wff): $(a <-> b) -> b -> a$ = 'conj_impl_r;
+
+theorem equiv_impl_l_i (a b: wff) (h: $a <-> b$): $a -> b$ = '(ax_mp h equiv_impl_l);
+theorem equiv_impl_r_i (a b: wff) (h: $a <-> b$): $b -> a$ = '(ax_mp h equiv_impl_r);
+
+theorem equiv_impl_l_d (u a b: wff) (h: $u -> (a <-> b)$): $u -> (a -> b)$ = '(mp_d h (a1_i equiv_impl_l));
+theorem equiv_impl_r_d (u a b: wff) (h: $u -> (a <-> b)$): $u -> (b -> a)$ = '(mp_d h (a1_i equiv_impl_r));
+
+theorem build_equiv_i (a b: wff)
+  (h1: $a -> b$) (h2: $b -> a$): $a <-> b$ = '(build_conj_i h1 h2);
+theorem build_equiv_d (u a b: wff)
+  (h1: $u -> (a -> b)$) (h2: $u -> (b -> a)$): $u -> (a <-> b)$ = '(build_conj_d h1 h2);
+-- explain what is being done (extract hipotheses one by one)
+theorem build_equiv_c (a b: wff): $((a -> b) /\ (b -> a)) -> (a <-> b)$ = (
+  let ([x $a -> b$] [y $b -> a$]) (
   focus
-  (have 'c $(a <-> b) -> ~~(b -> a)$ 'not_impl_cons)
-  '(syl c notnotr)
-);
+  (have 'c1 $,x /\ ,y -> ,x$ 'conj_impl_l)
+  (have 'c2 $,x /\ ,y -> ,y$ 'conj_impl_r)
+  '(build_equiv_d c1 c2)
+));
 
-theorem equiv_impl_i (a b: wff) (h: $a <-> b$): $a -> b$ = '(ax_mp h equiv_impl);
-theorem equiv_implr_i (a b: wff) (h: $a <-> b$): $b -> a$ = '(ax_mp h equiv_implr);
-
-theorem equiv_impl_d (u a b: wff) (h: $u -> (a <-> b)$): $u -> (a -> b)$ = '(mp_d h (a1_i equiv_impl));
 
 -- MAKE A TACTIC TO DERIVE DEDUCTION form PROOFS!!!!!
 
@@ -406,21 +421,21 @@ theorem equiv_impl_d (u a b: wff) (h: $u -> (a <-> b)$): $u -> (a -> b)$ = '(mp_
 theorem repl_equiv_cons (a b c: wff)
   (h1: $a -> b$) (h2: $b <-> c$): $a -> c$ = (
     focus
-    (have 'c $b -> c$ '(equiv_impl_i h2))
+    (have 'c $b -> c$ '(equiv_impl_l_i h2))
     '(syl h1 c)
 ); -- look this was easy to prove, because of inference form
 
 theorem repl_equiv_ant (a c b: wff)
   (h1: $a -> b$) (h2: $a <-> c$): $c -> b$ = (
     focus
-    (have 'c $c -> a$ '(equiv_implr_i h2))
+    (have 'c $c -> a$ '(equiv_impl_r_i h2))
     '(syl c h1)
 );
 
 -- we should always use u for deduction form!!!
 theorem repl_equiv_cons_d (a b c: wff)
   (h1: $u -> (a -> b)$) (h2: $u -> (b <-> c)$): $u -> (a -> c)$ = '(
-    syl_d h1 (equiv_impl_d h2)    
+    syl_d h1 (equiv_impl_l_d h2)    
   );
 
 
@@ -477,4 +492,29 @@ theorem repl_equiv_cons_d (a b c: wff)
 
 
 
+
+-- exercise
+-- theorem iand (h1: $a -> b$) (h2: $a -> c$): $a -> b /\ c$ = '(sylc ian h1 h2);
+
+-- do {
+--   (def dbg @ match-fn* [(x) (print x) x]
+--     [(x y) (display @ string-append (->string x) ": " (->string y)) y])
+--   (def last (match-fn [(a) a] [(_ . l) (last l)]))
+--   (let ([p (last @ get-decl 'mp_d)])
+--     (print (p))
+--     )
+-- };
+
+-- I don't know how to get the proof from get-decl:
+-- do {
+--   (def last (match-fn [(a) a] [(_ . l) (last l)]))
+--   (add-decl! 
+--   'theorem 'triple_conj_aa '((a wff ()) (b wff ()) (c wff ())) '((h (an (an a b) c))) 'a '() '(codj_impl_l_i (conj_impl_l_i h)))
+--   (print (get-decl 'mp_d))
+--   (let ([p (last @ get-decl 'mp_d)])
+--     (p))
+--     (print @ infer-type p)
+--   )
+--   (print @ ref! @ last @ get-decl 'mp_d)
+-- };
 
