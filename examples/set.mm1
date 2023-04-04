@@ -5,6 +5,9 @@
 -- * Errors in (have 'c $foo$ 'stupidity) fail silently.
 -- * missing variables are not pointed out.
 
+-- improvements on book:
+-- * try to make i -> d -> c theorem forms more uniform
+
 delimiter $ ( ) ~ { } $;
 strict provable sort wff;
 
@@ -178,25 +181,31 @@ theorem notnot (a: wff): $a -> ~~a$ = (
   '(a3_i c)
 );
 
+
 --| negated implication gives antecedent
-theorem not_impl_ant (a b: wff): $~(a -> b) -> a$ = (
+theorem not_impl_ant_c (a b: wff): $~(a -> b) -> a$ = (
   focus
   (have 'c1 $~a -> a -> b$ 'contrad_c)
   (have 'c2 $(a -> b) -> ~~(a -> b)$ 'notnot)
   (have 'c3 $~a -> ~~(a -> b)$ '(syl c1 c2))
   '(a3_i c3)
 );
+-- note that it can be nice to start with closed form, then do i and d.
+theorem not_impl_ant_i (a b: wff) (h: $~(a -> b)$): $a$ = '(ax_mp h not_impl_ant_c);
+theorem not_impl_ant_d (u a b: wff) (h: $u -> ~(a -> b)$): $u -> a$ = '(mp_d h (a1_i not_impl_ant_c));
 
 --| negated implication negates consequent
-theorem not_impl_cons (a b: wff): $~(a -> b) -> ~b$ = (
+theorem not_impl_cons_c (a b: wff): $~(a -> b) -> ~b$ = (
   focus
   (have 'c1 $b -> (a -> b)$ 'ax_1)
   (have 'c2 $~~b -> (a -> b)$ '(syl notnotr c1))
   (have 'c3 $~~b -> ~~(a -> b)$ '(syl c2 notnot))
   '(a3_i c3)
 );
+theorem not_impl_cons_i (a b: wff) (h: $~(a -> b)$): $~b$ = '(ax_mp h not_impl_cons_c);
+theorem not_impl_cons_d (u a b: wff) (h: $u -> ~(a -> b)$): $u -> ~b$ = '(mp_d h (a1_i not_impl_cons_c));
 
-theorem commute_ant (a b c: wff) (h: $a -> b -> c$): $b -> a -> c$ = (
+theorem commute_ant_i (a b c: wff) (h: $a -> b -> c$): $b -> a -> c$ = (
   focus
   (have 'c1 $(a -> b) -> (a -> c)$ '(a2_i h))
   (have 'c2 $b -> (a -> b)$ 'ax_1)
@@ -207,36 +216,51 @@ theorem commute_ant (a b c: wff) (h: $a -> b -> c$): $b -> a -> c$ = (
 -- it is difficult because we need h1 /\ h2. But we will
 -- move conjuction above
 theorem mp_c (a b: wff): $a -> (a -> b) -> b$ = '(
-  commute_ant (! id $a -> b$)
+  commute_ant_i (! id $a -> b$)
 );
+
+
 
 -- # Contraposition
 
-theorem contrap_i (h: $a -> ~b$): $b -> ~a$ = (
+theorem contrap_i (h: $a -> b$): $~b -> ~a$ = (
+  focus
+  (have 'c1 $~~a -> b$ '(syl notnotr h))
+  (have 'c2 $~~a -> ~~b$ '(syl c1 notnot))
+  '(a3_i c2)
+);
+-- look, it is just translation!!!
+theorem contrap_d (h: $u -> a -> b$): $u -> ~b -> ~a$ = '(
+  a3_d (syl_d (syl_d (a1_i notnotr) h) (a1_i notnot))
+);
+theorem contrap_c: $(a -> b) -> (~b -> ~a)$ = '(contrap_d id);
+
+theorem contrap_not_cons_i (h: $a -> ~b$): $b -> ~a$ = (
   focus
   (have 'c $~~a -> ~b$ '(syl notnotr h))
   '(a3_i c)
 );
 -- in order to build deduction from another proof, tautologies get an antecedent through a1i:
-theorem contrap_d (h: $u -> a -> ~b$): $u -> b -> ~a$ =
+theorem contrap_not_cons_d (h: $u -> a -> ~b$): $u -> b -> ~a$ =
   '(a3_d (syl_d (a1_i notnotr) h)
 );
 -- explain how to obtain closed from deduction
-theorem contrap_c: $(a -> ~b) -> b -> ~a$ =
-  '(contrap_d id);
+theorem contrap_not_cons_c: $(a -> ~b) -> b -> ~a$ =
+  '(contrap_not_cons_d id);
 
-theorem contrap2_i (h: $~a -> b$): $~b -> a$ = (
+theorem contrap_not_ant_i (h: $~a -> b$): $~b -> a$ = (
   focus
   (have 'c $~a -> ~~b$ '(syl h notnot))
   '(a3_i c)
 );
 -- in order to build deduction from another proof, tautologies get an antecedent through a1i:
-theorem contrap2_d (h: $u -> ~a -> b$): $u -> ~b -> a$ =
+theorem contrap_not_ant_d (h: $u -> ~a -> b$): $u -> ~b -> a$ =
   '(a3_d (syl_d h (a1_i notnot))
 );
 -- explain how to obtain closed from deduction
-theorem contrap2_c: $(~a -> b) -> ~b -> a$ =
-  '(contrap2_d id);
+theorem contrap_not_ant_c: $(~a -> b) -> ~b -> a$ =
+  '(contrap_not_ant_d id);
+
 
 
 -- # Conjunction
@@ -245,20 +269,24 @@ theorem contrap2_c: $(~a -> b) -> ~b -> a$ =
 def an (a b: wff): wff = $~(a -> ~b)$;
 infixl an: $/\$ prec 34;
 
-theorem conj_impl_l: $(a /\ b) -> a$ = 'not_impl_ant;
-theorem conj_impl_l_i (h: $a /\ b$): $a$ = '(ax_mp h conj_impl_l);
-theorem conj_impl_r: $(a /\ b) -> b$ = (
+theorem conj_impl_l_i (h: $a /\ b$): $a$ = '(not_impl_ant_i h);
+theorem conj_impl_l_d (h: $u -> a /\ b$): $u -> a$ = '(not_impl_ant_d h);
+theorem conj_impl_l_c: $(a /\ b) -> a$ = 'not_impl_ant_c;
+
+theorem conj_impl_r_c: $(a /\ b) -> b$ = (
   focus
-  (have 'c $(a /\ b) -> ~~b$ 'not_impl_cons)
+  (have 'c $(a /\ b) -> ~~b$ 'not_impl_cons_c)
   '(syl c notnotr)
 );
-theorem conj_impl_r_i (h: $a /\ b$): $b$ = '(ax_mp h conj_impl_r);
+theorem conj_impl_r_i (h: $a /\ b$): $b$ = '(ax_mp h conj_impl_r_c);
+theorem conj_impl_r_d (h: $u -> a /\ b$): $u -> b$ = '(mp_d h (a1_i conj_impl_r_c));
+
 
 -- build conjunction in closed form
 theorem build_conj: $a -> b -> a /\ b$ = (
   focus
   (have 'c $a -> (a -> ~b) -> ~b$ 'mp_c)
-  '(contrap_d c)
+  '(contrap_not_cons_d c)
 );
 theorem build_conj_i
   (h1: $a$) (h2: $b$): $a /\ b$ = (
@@ -270,9 +298,9 @@ theorem build_conj_i
 -- confirms intuition that double antecedent acts as conj
 theorem repl_two_and_conj (h: $a -> b -> c$): $a /\ b -> c$ = (
   focus
-  (have 'c1 $a /\ b -> a$ 'conj_impl_l)
+  (have 'c1 $a /\ b -> a$ 'conj_impl_l_c)
   (have 'c2 $a /\ b -> b -> c$ '(syl c1 h))
-  (have 'c3 $a /\ b -> b$ 'conj_impl_r)
+  (have 'c3 $a /\ b -> b$ 'conj_impl_r_c)
   '(mp_d c3 c2)
 );
 
@@ -288,7 +316,7 @@ theorem repl_conj_two_ant (a b c: wff) (h: $a /\ b -> c$): $a -> b -> c$ = (
 theorem contrap_dd (h: $u -> v -> a -> ~b$): $u -> v -> b -> ~a$ = (
   focus
   (have 'c1 $u /\ v -> a -> ~b$ '(repl_two_and_conj h))
-  (have 'c2 $u /\ v -> b -> ~a$ '(contrap_d c1))
+  (have 'c2 $u /\ v -> b -> ~a$ '(contrap_not_cons_d c1))
   '(repl_conj_two_ant c2)
 );
 
@@ -301,7 +329,7 @@ theorem _
 theorem _: $a -> b -> a /\ b$ = (
   focus
   (have 'c $a -> (a -> ~b) -> ~b$ 'mp_c)
-  '(contrap_d c)
+  '(contrap_not_cons_d c)
 );
 -- improve the explanation of how to decude this. Probably try to prove _i without _c first
 theorem build_conj_d
@@ -313,10 +341,19 @@ theorem build_conj_d
     '(mp_d h2 c3)
 );
 
-theorem conj_commut: $ a /\ b -> b /\ a $ = (
+theorem conj_commut_i (h: $a /\ b$): $b /\ a$ = (
   focus
-  (have 'c1 $a /\ b -> a$ 'conj_impl_l)
-  (have 'c2 $a /\ b -> b$ 'conj_impl_r)
+  (have 'c1 $a$ '(conj_impl_l_i h))
+  (have 'c2 $b$ '(conj_impl_r_i h))
+  '(build_conj_i c2 c1) -- note the inverted order
+);
+theorem conj_commut_d (u a b: wff) (h: $u -> a /\ b$): $u -> b /\ a$ = '(
+  build_conj_d (conj_impl_r_d h) (conj_impl_l_d h)
+);
+theorem conj_commut_c: $a /\ b -> b /\ a$ = (
+  focus
+  (have 'c1 $a /\ b -> a$ 'conj_impl_l_c)
+  (have 'c2 $a /\ b -> b$ 'conj_impl_r_c)
   '(build_conj_d c2 c1)
 );
 
@@ -342,25 +379,25 @@ theorem disj_from_l_c: $a -> a \/ b$ = (
   (have 'c $~~a -> ~a -> b$ 'contrad_c)
   '(syl notnot c)
 );
-theorem disj_from_r_c: $b -> a \/ b$ = 'ax_1;
-
 theorem disj_from_l_i (h: $a$): $a \/ b$ = (
   focus
   (have 'c $~~a$ '(ax_mp h notnot))
   '(contrad_i c)
 );
-theorem disj_from_r_i (h: $b$): $a \/ b$ = '(a1_i h);
--- transform from disj_from_l_i:
 theorem disj_from_l_d (h: $u -> a$): $u -> a \/ b$ = (
   focus
   (have 'c $u -> ~~a$ '(mp_d h (a1_i notnot)))
   '(contrad_d c)
 );
+
+-- much easier for right:
+theorem disj_from_r_c: $b -> a \/ b$ = 'ax_1;
+theorem disj_from_r_i (h: $b$): $a \/ b$ = '(a1_i h);
 theorem disj_from_r_d (h: $u -> b$): $u -> a \/ b$ = '(a1_d h);
 
 theorem disj_commut: $a \/ b -> b \/ a$ = (
   focus
-  (have 'qed $(~a -> b) -> ~b -> a$ 'contrap2_c)
+  (have 'qed $(~a -> b) -> ~b -> a$ 'contrap_not_ant_c)
   'qed
 );
 
@@ -387,9 +424,14 @@ prefix fal: $F.$ prec max;
 def iff (a b: wff): wff = $(a -> b) /\ (b -> a)$;
 infixl iff: $<->$ prec 20;
 
--- biimp
-theorem equiv_impl_l (a b: wff): $(a <-> b) -> a -> b$ = 'conj_impl_l;
-theorem equiv_impl_r (a b: wff): $(a <-> b) -> b -> a$ = 'conj_impl_r;
+-- ## Using equivalences
+theorem equiv_impl_l (a b: wff): $(a <-> b) -> a -> b$ = 'conj_impl_l_c;
+theorem equiv_impl_r (a b: wff): $(a <-> b) -> b -> a$ = 'conj_impl_r_c;
+
+-- we have already done the hard work when we proved theorems for conjunctions:
+theorem equiv_impl_both_c (a b: wff): $(a <-> b) -> (a -> b) /\ (b -> a)$ = '(build_conj_d conj_impl_l_c conj_impl_r_c);
+theorem equiv_impl_both_i (a b: wff) (h: $a <-> b$): $(a -> b) /\ (b -> a)$ = '(ax_mp h equiv_impl_both_c);
+theorem equiv_impl_both_d (u a b: wff) (h: $u -> (a <-> b)$): $u -> (a -> b) /\ (b -> a)$ = '(mp_d h (a1_i equiv_impl_both_c));
 
 theorem equiv_impl_l_i (a b: wff) (h: $a <-> b$): $a -> b$ = '(ax_mp h equiv_impl_l);
 theorem equiv_impl_r_i (a b: wff) (h: $a <-> b$): $b -> a$ = '(ax_mp h equiv_impl_r);
@@ -397,6 +439,7 @@ theorem equiv_impl_r_i (a b: wff) (h: $a <-> b$): $b -> a$ = '(ax_mp h equiv_imp
 theorem equiv_impl_l_d (u a b: wff) (h: $u -> (a <-> b)$): $u -> (a -> b)$ = '(mp_d h (a1_i equiv_impl_l));
 theorem equiv_impl_r_d (u a b: wff) (h: $u -> (a <-> b)$): $u -> (b -> a)$ = '(mp_d h (a1_i equiv_impl_r));
 
+-- ## Building equivalences
 theorem build_equiv_i (a b: wff)
   (h1: $a -> b$) (h2: $b -> a$): $a <-> b$ = '(build_conj_i h1 h2);
 theorem build_equiv_d (u a b: wff)
@@ -405,10 +448,34 @@ theorem build_equiv_d (u a b: wff)
 theorem build_equiv_c (a b: wff): $((a -> b) /\ (b -> a)) -> (a <-> b)$ = (
   let ([x $a -> b$] [y $b -> a$]) (
   focus
-  (have 'c1 $,x /\ ,y -> ,x$ 'conj_impl_l)
-  (have 'c2 $,x /\ ,y -> ,y$ 'conj_impl_r)
+  (have 'c1 $,x /\ ,y -> ,x$ 'conj_impl_l_c)
+  (have 'c2 $,x /\ ,y -> ,y$ 'conj_impl_r_c)
   '(build_equiv_d c1 c2)
 ));
+
+-- ## Basic properties
+theorem equiv_commut_i (a b: wff) (h: $a <-> b$): $b <-> a$ = '(conj_commut_i h);
+theorem equiv_commut_d (u a b: wff) (h: $u -> (a <-> b)$): $u -> (b <-> a)$ = '(conj_commut_d h);
+theorem equiv_commut_c (a b: wff): $(a <-> b) -> (b <-> a)$ = '(equiv_commut_d id);
+
+-- ## Relations with other operators
+
+theorem notnot_equiv: $a <-> ~~a$ = '(build_equiv_i notnot notnotr);
+
+theorem repl_equiv_not_i (a b: wff) (h: $a <-> b$): $~a <-> ~b$ = (
+  focus
+  (have 'c1 $b -> a$ '(equiv_impl_r_i h))
+  (have 'c2 $~a -> ~b$ '(contrap_i c1))
+  (have 'c3 $a -> b$ '(equiv_impl_l_i h))
+  (have 'c4 $~b -> ~a$ '(contrap_i c3))
+  '(build_equiv_i c2 c4)
+);
+-- again, just translate!!!
+theorem repl_equiv_not_d (u a b: wff) (h: $u -> (a <-> b)$): $u -> (~a <-> ~b)$ = '(
+  build_equiv_d (contrap_d (equiv_impl_r_d h)) (contrap_d (equiv_impl_l_d h))
+);
+theorem repl_equiv_not_c: $ (a <-> b) -> (~a <-> ~b) $ = '(repl_equiv_not_d id);
+
 
 
 -- MAKE A TACTIC TO DERIVE DEDUCTION form PROOFS!!!!!
