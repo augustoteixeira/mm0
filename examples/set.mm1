@@ -246,11 +246,10 @@ theorem conj_impl_r: $(a /\ b) -> b$ = (
 theorem conj_impl_r_i (h: $a /\ b$): $b$ = '(ax_mp h conj_impl_r);
 
 -- build conjunction in closed form
--- confirms intuition that double antecedent acts as conj
 theorem build_conj: $a -> b -> a /\ b$ = (
   focus
-  (have 'c1 $a -> (a -> ~b) -> ~b$ 'mp_c)
-  '(contrap_d c1)
+  (have 'c $a -> (a -> ~b) -> ~b$ 'mp_c)
+  '(contrap_d c)
 );
 theorem build_conj_i
   (h1: $a$) (h2: $b$): $a /\ b$ = (
@@ -258,9 +257,58 @@ theorem build_conj_i
   (have 'c $b -> a /\ b$ '(ax_mp h1 build_conj))
   '(ax_mp h2 c)
 );
--- theorem build_conj_d
---   (h1: $u -> a$) (h2: $u -> b$): $u -> a /\ b$ =
---   '(contrap_dd);
+
+-- confirms intuition that double antecedent acts as conj
+theorem repl_two_and_conj (h: $a -> b -> c$): $a /\ b -> c$ = (
+  focus
+  (have 'c1 $a /\ b -> a$ 'conj_impl_l)
+  (have 'c2 $a /\ b -> b -> c$ '(syl c1 h))
+  (have 'c3 $a /\ b -> b$ 'conj_impl_r)
+  '(mp_d c3 c2)
+);
+
+-- kind of converse of repl_two_and_conj
+theorem repl_conj_two_ant (a b c: wff) (h: $a /\ b -> c$): $a -> b -> c$ = (
+  focus
+  (have 'c1 $a -> b -> a /\ b$ 'build_conj)
+  (have 'c2 $a -> a /\ b -> c$ '(a1_i h))
+  '(syl_d c1 c2)
+);
+
+-- explain how build conjunction can help with double (or triple...) deduction
+theorem contrap_dd (h: $u -> v -> a -> ~b$): $u -> v -> b -> ~a$ = (
+  focus
+  (have 'c1 $u /\ v -> a -> ~b$ '(repl_two_and_conj h))
+  (have 'c2 $u /\ v -> b -> ~a$ '(contrap_d c1))
+  '(repl_conj_two_ant c2)
+);
+
+theorem _
+  (h1: $a$) (h2: $b$): $a /\ b$ = (
+  focus
+  (have 'c $b -> a /\ b$ '(ax_mp h1 build_conj))
+  '(ax_mp h2 c)
+);
+theorem _: $a -> b -> a /\ b$ = (
+  focus
+  (have 'c $a -> (a -> ~b) -> ~b$ 'mp_c)
+  '(contrap_d c)
+);
+theorem build_conj_d
+  (h1: $u -> a$) (h2: $u -> b$): $u -> a /\ b$ = (
+    focus
+    (have 'c1 $u -> a -> (a -> ~b) -> ~b$ '(a1_i mp_c))
+    (have 'c2 $u -> a -> b -> a /\ b$ '(contrap_dd c1)) -- It took me a long time to find out this missing c1
+    (have 'c3 $u -> b -> a /\ b$ '(mp_d h1 c2))
+    '(mp_d h2 c3)
+);
+
+theorem conj_commut: $ a /\ b -> b /\ a $ = (
+  focus
+  (have 'c1 $a /\ b -> a$ 'conj_impl_l)
+  (have 'c2 $a /\ b -> b$ 'conj_impl_r)
+  '(build_conj_d c2 c1)
+);
 
 theorem triple_conj_a (h: $a /\ b /\ c$): $a$ = (
   focus
@@ -271,6 +319,41 @@ theorem triple_conj_b (h: $a /\ b /\ c$): $b$ =
   '(conj_impl_r_i (conj_impl_l_i h));
 theorem triple_conj_c (h: $a /\ b /\ c$): $c$ =
   '(conj_impl_r_i h);
+
+-- # Disjunction
+
+
+--| Definition of disjunction (a or b)
+def or (a b: wff): wff = $~a -> b$;
+infixl or: $\/$ prec 30;
+
+
+theorem orl: $ a -> a \/ b $ = 'absurdr;
+theorem orr: $ b -> a \/ b $ = 'ax_1;
+
+theorem orld (h: $ a -> b $): $ a -> b \/ c $ = '(syl orl h);
+theorem orrd (h: $ a -> c $): $ a -> b \/ c $ = '(syl orr h);
+-- ?
+
+theorem orcom: $ a \/ b -> b \/ a $ = 'con1;
+
+theorem eorda (h1: $ a /\ b -> d $) (h2: $ a /\ c -> d $):
+  $ a -> b \/ c -> d $ = '(eord (exp h1) (exp h2));
+
+
+--| Truth tables
+def true (a: wff): wff = $a \/ ~a$;
+prefix true: $True$ prec max;
+def fal (a: wff): wff = $a /\ ~a$;
+prefix fal: $F.$ prec max;
+
+
+
+--| If and only if: `a` implies `b`, and `b` implies `a`.
+def iff (a b: wff): wff = $(a -> b) /\ (b -> a)$;
+infixl iff: $<->$ prec 20;
+
+
 
 -- exercise
 -- theorem iand (h1: $a -> b$) (h2: $a -> c$): $a -> b /\ c$ = '(sylc ian h1 h2);
@@ -296,25 +379,6 @@ theorem triple_conj_c (h: $a /\ b /\ c$): $c$ =
 --   )
 --   (print @ ref! @ last @ get-decl 'mp_d)
 -- };
-
---| Disjunction
-def or (a b: wff): wff = $~a -> b$;
-infixl or: $\/$ prec 30;
-
---| Truth tables
-def true (a: wff): wff = $a \/ ~a$;
-prefix true: $True$ prec max;
-def fal (a: wff): wff = $a /\ ~a$;
-prefix fal: $F.$ prec max;
-
-
-
---| If and only if: `a` implies `b`, and `b` implies `a`.
-def iff (a b: wff): wff = $(a -> b) /\ (b -> a)$;
-infixl iff: $<->$ prec 20;
-
-
-
 
 
 
