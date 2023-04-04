@@ -262,12 +262,40 @@ theorem build_conj_i
 --   (h1: $u -> a$) (h2: $u -> b$): $u -> a /\ b$ =
 --   '(contrap_dd);
 
-theorem anll (h: $a /\ b /\ c$): $a$ =
-  '(conj_impl_l_i (conj_impl_l_i h));
+theorem triple_conj_a (h: $a /\ b /\ c$): $a$ = (
+  focus
+  (have 'c $a /\ b$ '(conj_impl_l_i h))
+  '(conj_impl_l_i c)
+);
+theorem triple_conj_b (h: $a /\ b /\ c$): $b$ =
+  '(conj_impl_r_i (conj_impl_l_i h));
+theorem triple_conj_c (h: $a /\ b /\ c$): $c$ =
+  '(conj_impl_r_i h);
 
 -- exercise
 -- theorem iand (h1: $a -> b$) (h2: $a -> c$): $a -> b /\ c$ = '(sylc ian h1 h2);
 
+-- do {
+--   (def dbg @ match-fn* [(x) (print x) x]
+--     [(x y) (display @ string-append (->string x) ": " (->string y)) y])
+--   (def last (match-fn [(a) a] [(_ . l) (last l)]))
+--   (let ([p (last @ get-decl 'mp_d)])
+--     (print (p))
+--     )
+-- };
+
+-- I don't know how to get the proof from get-decl:
+-- do {
+--   (def last (match-fn [(a) a] [(_ . l) (last l)]))
+--   (add-decl! 
+--   'theorem 'triple_conj_aa '((a wff ()) (b wff ()) (c wff ())) '((h (an (an a b) c))) 'a '() '(codj_impl_l_i (conj_impl_l_i h)))
+--   (print (get-decl 'mp_d))
+--   (let ([p (last @ get-decl 'mp_d)])
+--     (p))
+--     (print @ infer-type p)
+--   )
+--   (print @ ref! @ last @ get-decl 'mp_d)
+-- };
 
 --| Disjunction
 def or (a b: wff): wff = $~a -> b$;
