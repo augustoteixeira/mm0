@@ -11,6 +11,12 @@
 delimiter $ ( ) ~ { } $;
 strict provable sort wff;
 
+-- annotations look nice, but the proof is again not easy to use
+-- do {
+--   (def last (match-fn [(a) a] [(_ . l) (last l)]))
+--   (def (annotate e s) @ match e [_ (print @ last @ get-decl s)])
+-- };
+
 -- # Axioms
 
 term wi (a b: wff): wff; infixr wi: $->$ prec 25;
@@ -470,7 +476,7 @@ theorem repl_equiv_not_i (a b: wff) (h: $a <-> b$): $~a <-> ~b$ = (
   (have 'c4 $~b -> ~a$ '(contrap_i c3))
   '(build_equiv_i c2 c4)
 );
--- again, just translate!!!
+-- again, just translate to get deduction!!!
 theorem repl_equiv_not_d (u a b: wff) (h: $u -> (a <-> b)$): $u -> (~a <-> ~b)$ = '(
   build_equiv_d (contrap_d (equiv_impl_r_d h)) (contrap_d (equiv_impl_l_d h))
 );
@@ -479,7 +485,41 @@ theorem repl_equiv_not_c: $ (a <-> b) -> (~a <-> ~b) $ = '(repl_equiv_not_d id);
 
 
 -- MAKE A TACTIC TO DERIVE DEDUCTION form PROOFS!!!!!
+do {
+  (def (convert_i_d x)
+    (if (not @ string? x) (error "Tried to convert non string")
+      (let ([l (string-len x)])
+        (if {l <= 2} x
+          (let ([prefix (substr 0 {l - 2} x)] [sufix (substr {l - 2} l x)])
+            (if (== sufix "_i")
+              (string-append prefix "_d")
+              (if {x == "syl"} "syl_d" x)
+            )
+          )
+        )
+      )
+    )
+  )
+  -- (print @ convert_i_d "asfdx")
+  -- (print @ convert_i_d "asfdx_i")
+};
 
+do {
+  (def (id2 x)
+    (match x
+      [() ()]
+      [(h . t) '(,(id2 h) . ,(id2 t))]
+      [a 
+        (if (atom? x)
+          (string->atom @ convert_i_d @ ->string x)
+          x)]))
+  -- (print @ id2 '())
+  -- (print @ id2 'a)
+  -- (print @ id2 '(b_i))
+  -- (print @ id2 '(c_c d_i))
+  -- (print @ id2 '(e (f_i)))
+  -- (print @ id2 '((g) h))
+};
 
 
 
@@ -492,12 +532,28 @@ theorem repl_equiv_cons (a b c: wff)
     '(syl h1 c)
 ); -- look this was easy to prove, because of inference form
 
-theorem repl_equiv_ant (a c b: wff)
+do { (def temp (ref!)) };
+
+do { (def recor (fn x (begin (set! temp x) x )))
+};
+
+do { (recor 234) };
+do { (print temp) };
+
+theorem repl_equiv_ant_i (a c b: wff)
   (h1: $a -> b$) (h2: $a <-> c$): $c -> b$ = (
     focus
     (have 'c $c -> a$ '(equiv_impl_r_i h2))
     '(syl c h1)
 );
+
+do {
+  (print @ id2 '(
+    focus
+    (have 'c $c -> a$ '(equiv_impl_r_i h2))
+    '(syl c h1)
+))
+};
 
 -- we should always use u for deduction form!!!
 theorem repl_equiv_cons_d (a b c: wff)
