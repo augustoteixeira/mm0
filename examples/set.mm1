@@ -409,6 +409,12 @@ theorem disj_commut_c (a b: wff): $a \/ b -> b \/ a$ = (
 theorem disj_commut_i (a b: wff) (h: $a \/ b$): $b \/ a$ = '(ax_mp h disj_commut_c);
 theorem disj_commut_d (a b: wff) (h: $u -> (a \/ b)$): $u -> (b \/ a)$ = '(mp_d h (a1_i disj_commut_c));
 
+theorem either_impl_disj_impl_i (a b c: wff)
+  (h1: $a -> c$) (h2: $b -> c$): $(a \/ b) -> c$ = (
+  
+);
+
+--    (~a -> b) -> c
 
 
 -- exercise
@@ -632,6 +638,10 @@ theorem disj_commut_equiv_c (a b: wff): $a \/ b <-> b \/ a$ = (
   (have 'c2 $(b \/ a) -> (a \/ b)$ 'disj_commut_c)
   '(build_equiv_i c1 c2)
 );
+
+theorem repl_equiv_disj_l_c (a b c: wff)
+  (h: $a <-> b$): $(a \/ c) -> (b \/ c)$ = _;
+
 
 theorem repl_equiv_disj_l_i (a b c: wff)
   (h1: $a <-> b$) (h2: $a \/ c$): $b \/ c$ = _;
