@@ -396,17 +396,20 @@ theorem disj_from_l_d (h: $u -> a$): $u -> a \/ b$ = (
 );
 
 -- much easier for right:
-theorem disj_from_r_c: $b -> a \/ b$ = 'ax_1;
-theorem disj_from_r_i (h: $b$): $a \/ b$ = '(a1_i h);
-theorem disj_from_r_d (h: $u -> b$): $u -> a \/ b$ = '(a1_d h);
+theorem disj_from_r_c (a b: wff): $b -> a \/ b$ = 'ax_1;
+theorem disj_from_r_i (a b: wff) (h: $b$): $a \/ b$ = '(a1_i h);
+theorem disj_from_r_d (u a b: wff) (h: $u -> b$): $u -> a \/ b$ = '(a1_d h);
 
-theorem disj_commut_i: ...
-
-theorem disj_commut: $a \/ b -> b \/ a$ = (
+-- now commutation gets easier starting with closed form:
+theorem disj_commut_c (a b: wff): $a \/ b -> b \/ a$ = (
   focus
   (have 'qed $(~a -> b) -> ~b -> a$ 'contrap_not_ant_c)
   'qed
 );
+theorem disj_commut_i (a b: wff) (h: $a \/ b$): $b \/ a$ = '(ax_mp h disj_commut_c);
+theorem disj_commut_d (a b: wff) (h: $u -> (a \/ b)$): $u -> (b \/ a)$ = '(mp_d h (a1_i disj_commut_c));
+
+
 
 -- exercise
 --theorem eorda (h1: $a /\ b -> d$) (h2: $a /\ c -> d$):
@@ -623,14 +626,15 @@ theorem equiv_r_term_equiv_conj_i (a b c: wff)
 
 -- ### Disjunction
 
-theorem disj_commut_equiv_c (a b: wff): $a /\ b <-> b /\ a$ = (
+theorem disj_commut_equiv_c (a b: wff): $a \/ b <-> b \/ a$ = (
   focus
-  (have 'c1 $(a /\ b) -> (b /\ a)$ 'disj_commut)
-  (have 'c2 $(b /\ a) -> (a /\ b)$ 'conj_commut_c)
+  (have 'c1 $(a \/ b) -> (b \/ a)$ 'disj_commut_c)
+  (have 'c2 $(b \/ a) -> (a \/ b)$ 'disj_commut_c)
   '(build_equiv_i c1 c2)
 );
 
-
+theorem repl_equiv_disj_l_i (a b c: wff)
+  (h1: $a <-> b$) (h2: $a \/ c$): $b \/ c$ = _;
 
 -- exercise
 -- theorem iand (h1: $a -> b$) (h2: $a -> c$): $a -> b /\ c$ = '(sylc ian h1 h2);
