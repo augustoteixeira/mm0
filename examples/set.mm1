@@ -1,3 +1,9 @@
+-- TODO:
+-- * create new repo
+-- * split file into many
+-- * organize how tactics should be presented
+-- * polish deduction tactics
+
 -- improvements on mm1:
 -- * use quotes instead of dolars: "p -> q". look at how Isabelle HOL looks much better
 -- * scripting language should be typed. type driven development helps a lot.
@@ -680,14 +686,14 @@ theorem equiv_ant_equiv_impl_i (a b c: wff) (h: $a <-> b$): $(a -> c) <-> (b -> 
 
 
 do { (def temp (ref!)) };
-
-do { (def recor (fn x (begin (set! temp x) x ))) };
-
-do { (recor 23) };
-do { (print temp) };
-
-
-
+do {
+  (def recor (fn x 
+    (hd (begin
+      (set! temp (hd x))
+      x)
+    ))
+  )
+};
 
 do {
   (def (convert_i_d x)
@@ -727,6 +733,15 @@ do {
 
 
 
+-- testing tactics
+theorem _ (a b c: wff)
+  (h1: $a <-> b$) (h2: $a -> c$): $b -> c$ = (recor '(
+    syl (equiv_impl_r_i h1) h2
+  ));
+theorem _ (a b c: wff)
+  (h1: $a <-> b$) (h2: $a -> c$): $b -> c$ = temp;
+theorem _ (u a b c: wff)
+  (h1: $u -> (a <-> b)$) (h2: $u -> (a -> c)$): $u -> (b -> c)$ = (convert_to_deduction temp);
 
 -- ### Conjunction
 
@@ -748,51 +763,6 @@ theorem repl_equiv_conj_l_i (a b c: wff)
   '(build_conj_i c2 c3)
 );
 -- by now we should already have a tactic to obtain deductions
-
-theorem _ (a b: wff)
-  (h1: $a -> b$) (h2: $b -> a$): $a <-> b$ = '(build_conj_i h1 h2);
-
-do {
-  (add-thm!
-    'teste
-    '[(a wff ()) (b wff ())]
-    '([h1 $a -> b$] [h2 $b -> a$])
-    $(a -> b) /\ (b -> a)$
-    ()
-    (fn () '(() (build_conj_i $a -> b$ $b -> a$ h1 h2)))
-  )
-  (add-thm!
-    'teste2
-    '[(a wff ()) (b wff ())]
-    '([h1 $a -> b$] [h2 $b -> a$])
-    $(a -> b) /\ (b -> a)$
-    ()
-    (fn () '(() (build_conj_i $a -> b$ $b -> a$ h1 h2)))
-  )
-  (print @ get-decl 'teste2)
-};
-
-
-do {
-  (print (get-decl 'repl_equiv_conj_l_i))
-  (add-term! 'a '[(a wff ())] 'wff)
-  (add-term! 'b '[(b wff ())] 'wff)
-  (add-term! 'c '[(c wff ())] 'wff)
-  (add-thm! 'h1 '[(a wff ()) (b wff ())] () '($a <-> b$))
-  (add-thm! 'h2 '[(a wff ()) (c wff ())] () '($a /\ c$))
-  (set-goals (goal $b /\ c$))
-  (focus
-  (have 'c1 $a$ '(conj_impl_l_i h2))
-  (have 'c2 $b$ '(ax_mp c1 (equiv_impl_l_i h1)))
-  (have 'c3 $c$ '(conj_impl_r_i h2))
-  '(build_conj_i c2 c3))
-};
-
-do { (print temp) };
-do { (print (convert_to_deduction temp)) };
-
-theorem atempt_____repl_equiv_conj_l_d (u a b c: wff)
-  (h1: $u -> (a <-> b)$) (h2: $u -> (a /\ c)$): $u -> (b /\ c)$ = '(tests temp);
 theorem repl_equiv_conj_l_d (u a b c: wff)
   (h1: $u -> (a <-> b)$) (h2: $u -> (a /\ c)$): $u -> (b /\ c)$ = '(
   build_conj_d (mp_d (conj_impl_l_d h2) (equiv_impl_l_d h1)) (conj_impl_r_d h2)
@@ -881,10 +851,40 @@ theorem equiv_r_term_equiv_disj_i (a b c: wff)
     '(equiv_syl_i c3 c4)
 );
 
-
-
 -- exercise
 -- theorem iand (h1: $a -> b$) (h2: $a -> c$): $a -> b /\ c$ = '(sylc ian h1 h2);
+
+
+
+
+
+
+
+-- add theorem through do-block
+-- do {
+--   (add-thm!
+--     'teste
+--     '[(a wff ()) (b wff ())]
+--     '([h1 $a -> b$] [h2 $b -> a$])
+--     $(a -> b) /\ (b -> a)$
+--     ()
+--     (fn () '(() (build_conj_i $a -> b$ $b -> a$ h1 h2)))
+--   )
+--   (print @ get-decl 'teste2)
+-- };
+-- do {
+--   (print (get-decl 'repl_equiv_conj_l_i))
+--   (add-term! 'a '[(a wff ())] 'wff)
+--   (add-term! 'b '[(b wff ())] 'wff)
+--   (add-thm! 'h1 '[(a wff ()) (b wff ())] () '($a -> b$))
+--   (add-thm! 'h2 '[(a wff ()) (b wff ())] () '($b -> a$))
+--   (set-goals (goal $a <-> b$))
+--   (print @ get-goals)
+--   (refine '(build_conj_i h1 h2))
+--   (print @ get-goals)
+-- };
+
+
 
 -- do {
 --   (def dbg @ match-fn* [(x) (print x) x]
