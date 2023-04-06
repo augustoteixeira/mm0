@@ -11,7 +11,7 @@
 -- Questions to Mario:
 -- * ask_why_this_proof_does_not_work
 
--- book phylosophy
+-- collection phylosophy
 -- * empowering - people reading should feel like they could write it
 -- * familiarity - notation/statements should mimic what mathematicians are used to.
 --   This helps with understanding the material, reduces learning curve, reduces feeling that
@@ -21,6 +21,11 @@
 --     * We present fewer results (even if future proofs involve more steps).
 --     * We rely on familiarity to decide what to introduce (easier to remember familiar things)
 --     * We create patterns accross the book (for example, deduction style being always the same)
+-- * good choice of divisions (multiscale: book, chapter, section):
+--     * good encapsulation
+--     * small surface of interaction
+--     * DAG of dependencies
+-- * can be read skipping the code of tactics, just learning what they do and believing the code is good
 
 -- improvements on book:
 -- * try to make i -> d -> c theorem forms more uniform
