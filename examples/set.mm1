@@ -13,9 +13,12 @@
 -- * it is good to have non-comparable ordering (example $->$ and $<->$ are often a source of bugs)
 -- * missing ; sends error down
 -- * few arguments to theorem has cryptic error message
+-- * documentation is scarse. mm1.md is too condensed.
+-- * tactics are too implicit and imperative. Take refine for example. I would much rather
+--   pass the goal and metavariables as arguments to refine and have the proof be returned.
 
 -- Questions to Mario:
--- * ask_why_this_proof_does_not_work
+-- * how to make `(have 'c $a -> b$ 'not-valid)` return an error there instead of later?
 
 -- collection phylosophy
 -- * empowering - people reading should feel like they could write it
@@ -47,8 +50,11 @@ strict provable sort wff;
 
 -- # Axioms
 
-term wi (a b: wff): wff; infixr wi: $->$ prec 25;
-term wn (a: wff): wff; prefix wn: $~$ prec 40;
+term wi (a b: wff): wff;
+infixr wi: $->$ prec 25;
+
+term wn (a: wff): wff;
+prefix wn: $~$ prec 40;
 
 --| Axiom 1 of Lukasiewicz' axioms for classical propositional logic.
 axiom ax_1 (a b: wff): $a -> b -> a$;
@@ -113,19 +119,6 @@ theorem id: $a -> a$ = (
   (have 'h2 $a -> ((a -> a) -> a)$ 'ax_1)
   '(mp_d h1 h2)
 );
-
-do {
-  (def (claim label exp p)
-    (begin
-      --(display @ pp label)
-      --(display @ pp exp)
-      --(have 'label exp p)
-      --(display @ pp @ infer-type 'label)
-      (if (not @ == exp (infer-type 'label))
-          (error "expressions do not match")
-      )
-      ))
-};
 
 -- # Contradiction
 
@@ -470,61 +463,27 @@ theorem disj_not_r_impl_l_i (a b: wff)
     '(disj_not_l_impl_r_i c h2)
 );
 
+-- we may want to split the proof into sub-proofs
+-- this can look better than having c1, ..., c9, right?
 theorem either_impl_disj_impl_i (a b c: wff)
   (h1: $a -> c$) (h2: $b -> c$): $(a \/ b) -> c$ = (
   focus
-    (have 's1 $(~a -> b) -> a -> c$ '(a1_i h1))
-  (have 'c1 $a -> (~a -> b) -> c$ '(commute_ant_i s1))
+  -- we will use cases, first case: a
+  (have 'c1 $a -> (a \/ b) -> c$ (
+    begin
+    (have 's1 $(a \/ b) -> a -> c$ '(a1_i h1))
+    '(commute_ant_i s1)))
+  -- we will use cases, second case: ~a
+  (have 'c2 $~a -> (a \/ b) -> c$ (
+    begin
     (have 's2 $~a -> (~a -> b) -> b$ 'mp_c)
-    (have 's3 $~a /\ (~a -> b) -> b$ '(repl_two_and_conj s2))
-    (have 's4 $~a /\ (~a -> b) -> c$ '(syl s3 h2))
-  (have 'c2 $~a -> (~a -> b) -> c$ '(repl_conj_two_ant s4))
+    -- encapsulate the two antecedents into a single formula to use sylogism
+    (have 's3 $(~a /\ (~a -> b)) -> b$ '(repl_two_and_conj s2))
+    (have 's4 $(~a /\ (~a -> b)) -> c$ '(syl s3 h2))
+    '(repl_conj_two_ant s4)))
   '(cases_i c1 c2)
 );
--- see if we can nest claims, like
--- have a -> ...
---   have ...
---   have ...
--- have ~a -> ...
---   have ...
---   have ...
--- conclude
--- theorem ask_why_this_proof_does_not_work (a b c: wff)
---   (h1: $a -> c$) (h2: $b -> c$): $(a \/ b) -> c$ = (
---   focus
---   (have 'c1 $a -> (a \/ b) -> c$ (
---     focus
---     (have 's1 $(~a -> b) -> a -> c$ '(a1_i h1))
---     '(commute_ant_i s1)
---   ))
---   (have 'c2 $~a -> (~a -> b) -> c$ (
---     (have 's2 $~a -> (~a -> b) -> b$ 'mp_c)
---     (have 's3 $~a /\ (~a -> b) -> b$ '(repl_two_and_conj s2))
---     (have 's4 $~a /\ (~a -> b) -> c$ '(syl s3 h2))
---     '(repl_conj_two_ant s4)
---   ))
---   '(cases_i c1 c2)
--- );
 
-
-
---    (a -> c)
---    (b -> c) -> (~a -> b) -> c
---    (~a -> b) -> (b -> c) -> c
-
---    (b -> c)
---    (a -> c) -> (~a -> b) -> c
---    (~a -> b) -> (a -> c) -> c
-
-
-
--- ~a -> c
--- b -> c
-
--- (~a -> b) -> c
-
-
---    (b -> c) -> (~a -> b) -> c
 
 
 
@@ -818,12 +777,17 @@ theorem disj_commut_equiv_c (a b: wff): $a \/ b <-> b \/ a$ = (
 theorem repl_equiv_disj_l_i (a b c: wff)
   (h1: $a <-> b$) (h2: $a \/ c$): $b \/ c$ = (
   focus
-    (have 'c1 $a -> b$ '(equiv_impl_l_i h1))
-    (have 'c2 $b -> (b \/ c)$ 'disj_from_l_c)
-  (have 'c3 $a -> (b \/ c)$ '(syl c1 c2))
-    (have 'c4 $~a -> c$ '(disj_not_l_impl_r_ci h2))
-    (have 'c5 $c -> (b \/ c)$ 'disj_from_r_c)
-  (have 'c6 $~a -> (b \/ c)$ '(syl c4 c5))
+  -- consider two cases, a and ~a:
+  (have 'c3 $a -> (b \/ c)$
+    (begin
+      (have 'c1 $a -> b$ '(equiv_impl_l_i h1))
+      (have 'c2 $b -> (b \/ c)$ 'disj_from_l_c)
+      '(syl c1 c2)))
+  (have 'c6 $~a -> (b \/ c)$
+    (begin
+      (have 'c4 $~a -> c$ '(disj_not_l_impl_r_ci h2))
+      (have 'c5 $c -> (b \/ c)$ 'disj_from_r_c)
+      '(syl c4 c5)))
   '(cases_i c3 c6)
 );
 -- NOW WE BADLY NEED THE TACTIC TO BUILD DEDUCTIONS!!!!
@@ -872,17 +836,18 @@ theorem equiv_r_term_equiv_disj_i (a b c: wff)
 --   )
 --   (print @ get-decl 'teste2)
 -- };
--- do {
---   (print (get-decl 'repl_equiv_conj_l_i))
---   (add-term! 'a '[(a wff ())] 'wff)
---   (add-term! 'b '[(b wff ())] 'wff)
---   (add-thm! 'h1 '[(a wff ()) (b wff ())] () '($a -> b$))
---   (add-thm! 'h2 '[(a wff ()) (b wff ())] () '($b -> a$))
---   (set-goals (goal $a <-> b$))
---   (print @ get-goals)
---   (refine '(build_conj_i h1 h2))
---   (print @ get-goals)
--- };
+do {
+  (print (get-decl 'repl_equiv_conj_l_i))
+  (add-term! 'a '[(a wff ())] 'wff)
+  (add-term! 'b '[(b wff ())] 'wff)
+  (add-thm! 'h1 '[(a wff ()) (b wff ())] () '($a -> b$))
+  (add-thm! 'h2 '[(a wff ()) (b wff ())] () '($b -> a$))
+  (set-goals (goal $a <-> b$))
+  (print @ get-goals)
+  (print @ expand '(build_conj_i h1 h2))
+  (refine '(build_conj_i h1 h2))
+  (print @ get-goals)
+};
 
 
 
